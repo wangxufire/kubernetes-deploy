@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dockerui
+  namespace: kube-system
+  labels:
+    app: ui
+spec:
+  ports:
+    # the port that this service should serve on
+  - port: 9000
+    targetPort: 9000
+    nodePort: 39000
+  selector:
+    app: ui
+  type: NodePort
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: dockerui-rc
+  namespace: kube-system
+  # these labels can be applied automatically 
+  # from the labels in the pod template if not set
+  labels:
+    app: ui
+spec:
+  # this replicas value is default
+  # modify it according to your case
+  replicas: 3
+  # selector can be applied automatically 
+  # from the labels in the pod template if not set
+  # selector:
+  #   app: ui
+  template:
+    metadata:
+      labels:
+        app: ui
+    spec:
+      volumes:
+      - name: sock
+        hostPath:
+          path: /var/run/docker.sock
+      # restartPolicy: Always
+      # dnsPolicy: ClusterFirst
+      # hostPID: true
+      # hostIPC: true
+      # hostNetwork: true
+      # terminationGracePeriodSeconds: 30
+      containers:
+      - name: dui
+        image: docker.io/dockerui/dockerui
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+            # storage: "3Gi"
+        ports:
+        - containerPort: 9000
+          name: dui # 每个端口的服务名
+        volumeMounts:
+        - name: sock
+          mountPath: /var/run/docker.sock
+          readOnly: false
+        securityContext:
+          privileged: true
+        # livenessProbe:
+        #   httpGet:
+        #     path: /
+        #     port: 9000
+        #     scheme: HTTP
+        #   initialDelaySeconds: 180
+        #   timeoutSeconds: 10
+        # readinessProbe:
+        #   httpGet:
+        #     path: /
+        #     port: 9000
+        #     scheme: HTTP
+        #   initialDelaySeconds: 180
+        #   timeoutSeconds: 10
+        terminationMessagePath: "/dev/termination-log"
+      # - command:
+      #     - /run.sh
+        # args:
+        # - etcd-discovery.sh
+        # env:
+        # - name: GET_HOSTS_FROM
+        #   value: dns
